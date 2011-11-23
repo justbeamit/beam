@@ -1,0 +1,60 @@
+#!/usr/bin/env python
+import httplib, mimetypes, urlparse
+from sys import argv
+from json import loads
+from urllib2 import urlopen
+
+ROOT = "http://justbeamit.com/"
+
+def main():
+  if len(argv) != 2 or argv[1] == "--help":      
+    exit('Usage: beam <filename>')
+  filename = argv[1]
+  token = get_token()
+  print "Your file can be downloaded here: " + ROOT + token
+  posturl(ROOT + "upload/" + token, [], [("file", filename, open(filename).read())])
+
+def get_token():
+  return loads(urlopen(ROOT + "tk/").read())['token']
+
+def posturl(url, fields, files):
+    urlparts = urlparse.urlsplit(url)
+    return post_multipart(urlparts[1], urlparts[2], fields,files)
+
+def post_multipart(host, selector, fields, files):
+    content_type, body = encode_multipart_formdata(fields, files)
+    h = httplib.HTTP(host)
+    h.putrequest('POST', selector)
+    h.putheader('content-type', content_type)
+    h.putheader('content-length', str(len(body)))
+    h.endheaders()
+    h.send(body)
+    errcode, errmsg, headers = h.getreply()
+    return h.file.read()
+
+def encode_multipart_formdata(fields, files):
+    BOUNDARY = '----------ThIs_Is_tHe_bouNdaRY_$'
+    CRLF = '\r\n'
+    L = []
+    for (key, value) in fields:
+        L.append('--' + BOUNDARY)
+        L.append('Content-Disposition: form-data; name="%s"' % key)
+        L.append('')
+        L.append(value)
+    for (key, filename, value) in files:
+        L.append('--' + BOUNDARY)
+        L.append('Content-Disposition: form-data; name="%s"; filename="%s"' % (key, filename))
+        L.append('Content-Type: %s' % get_content_type(filename))
+        L.append('')
+        L.append(value)
+    L.append('--' + BOUNDARY + '--')
+    L.append('')
+    body = CRLF.join(L)
+    content_type = 'multipart/form-data; boundary=%s' % BOUNDARY
+    return content_type, body
+
+def get_content_type(filename):
+    return mimetypes.guess_type(filename)[0] or 'application/octet-stream'
+
+if __name__ == "__main__":
+  main()
