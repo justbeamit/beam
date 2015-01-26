@@ -292,9 +292,9 @@ def transfer(token, filePaths):
       theProgressBar.start()
 
       urlParams = {
+        "type": "CLI",
         "token": token,
-        "index": index,
-        "type": "CLI"
+        "index": index
       }
 
       requests.post(
