@@ -18,6 +18,8 @@ Note that this requires you to have [pip](https://pip.pypa.io/en/latest/index.ht
 
     $ sudo cp beam /usr/bin
 
+Tested with Python 2.7.9.
+
 ### **Usage**
 
 You can pass in 1 or more paths to the file(s) you want to transfer as arguments to `beam`. The paths must point to existing files, and directories are not supported.
