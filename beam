@@ -16,7 +16,8 @@ from progressbar import (
 
 import os, sys, time, math, json, mimetypes, requests
 
-# https://github.com/WoLpH/python-progressbar/blob/master/progressbar/widgets.py#L123
+# a copy of https://github.com/WoLpH/python-progressbar/blob/master/progressbar/widgets.py#L123
+# remove this once the widgets.py bugs are fixed
 class AdaptiveETA(ETA):
 
     TIME_SENSITIVE = True
@@ -52,7 +53,8 @@ class AdaptiveETA(ETA):
         per_item = duration / items
         return todo * per_item
 
-# https://github.com/WoLpH/python-progressbar/blob/master/progressbar/widgets.py#L192
+# a copy of https://github.com/WoLpH/python-progressbar/blob/master/progressbar/widgets.py#L192
+# remove this once the widgets.py bugs are fixed
 class AdaptiveTransferSpeed(FileTransferSpeed):
 
     def __init__(self, num_samples=10):
@@ -133,11 +135,11 @@ def main():
 
   print("please provide this link to the recipient:\n")
   print("  " + JBI_URL + "/" + token + "\n")
-  
-  # # call /wait
+
+  # call /wait
   wait(token)
 
-  # # call /upload
+  # call /upload
   transfer(token, filePaths)
 
 
@@ -199,7 +201,7 @@ def getToken(filePaths):
   # end for loop
 
   requestData = {
-    "type": "CMD",
+    "type": "CLI",
     "files": json.dumps(files)
   }
 
@@ -223,10 +225,11 @@ def getToken(filePaths):
 
 
 def wait(token):
-  
+
   waitUrl = ACTIVE_BACKEND + "/wait"
-  
+
   urlParams = {
+    "type": "CLI",
     "token": token
   }
 
@@ -263,7 +266,7 @@ def transfer(token, filePaths):
 
     for filePath in filePaths:
 
-      # make the console look pretty with the 
+      # make the console look pretty
       sys.stdout.write("\n")
       print("  " + filePath)
 
@@ -291,7 +294,7 @@ def transfer(token, filePaths):
       urlParams = {
         "token": token,
         "index": index,
-        "type": "CMD"
+        "type": "CLI"
       }
 
       requests.post(
