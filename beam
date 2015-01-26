@@ -1,60 +1,333 @@
 #!/usr/bin/env python
-import httplib, mimetypes, urlparse
-from sys import argv
-from json import loads
-from urllib2 import urlopen
 
-ROOT = "http://justbeamit.com/"
+from requests_toolbelt import (
+  MultipartEncoder,
+  MultipartEncoderMonitor
+)
+
+from progressbar import (
+  Bar,
+  ETA,
+  FileTransferSpeed,
+  Percentage,
+  ProgressBar,
+  Widget
+)
+
+import os, sys, time, math, json, mimetypes, requests
+
+# https://github.com/WoLpH/python-progressbar/blob/master/progressbar/widgets.py#L123
+class AdaptiveETA(ETA):
+
+    TIME_SENSITIVE = True
+
+    def __init__(self, num_samples=10, **kwargs):
+        ETA.__init__(self, **kwargs)
+        self.num_samples = num_samples
+        self.samples = []
+        self.sample_vals = []
+        self.last_sample_val = None
+
+    def _eta(self, pbar):
+        samples = self.samples
+        sample_vals = self.sample_vals
+        if pbar.currval != self.last_sample_val:
+            self.last_sample_val = pbar.currval
+            samples.append(pbar.seconds_elapsed)
+            sample_vals.append(pbar.currval)
+            if len(samples) > self.num_samples:
+                samples.pop(0)
+                sample_vals.pop(0)
+
+        if len(samples) <= 1:
+            return ETA._eta(self, pbar)
+
+        todo = pbar.maxval - pbar.currval
+        items = sample_vals[-1] - sample_vals[0]
+        duration = float(samples[-1] - samples[0])
+
+        if (items == 0):
+          return ETA._eta(self, pbar)
+
+        per_item = duration / items
+        return todo * per_item
+
+# https://github.com/WoLpH/python-progressbar/blob/master/progressbar/widgets.py#L192
+class AdaptiveTransferSpeed(FileTransferSpeed):
+
+    def __init__(self, num_samples=10):
+        FileTransferSpeed.__init__(self)
+        self.num_samples = num_samples
+        self.samples = []
+        self.sample_vals = []
+        self.last_sample_val = None
+
+    def _speed(self, pbar):
+        samples = self.samples
+        sample_vals = self.sample_vals
+        if pbar.currval != self.last_sample_val:
+            self.last_sample_val = pbar.currval
+            samples.append(pbar.seconds_elapsed)
+            sample_vals.append(pbar.currval)
+            if len(samples) > self.num_samples:
+                samples.pop(0)
+                sample_vals.pop(0)
+
+        if len(samples) <= 1:
+            return FileTransferSpeed._speed(self, pbar)
+
+        items = sample_vals[-1] - sample_vals[0]
+        duration = float(samples[-1] - samples[0])
+        speed = items / duration
+
+        if (speed <= 0):
+          return FileTransferSpeed._speed(self, pbar)
+
+        power = int(math.log(speed, 1000))
+        scaled = speed / 1000. ** power
+        return scaled, power
+
+
+
+class FilesCounter(Widget):
+
+  def __init__(self, sep=' of '):
+    self.sep = sep
+
+  def update(self, progressBar):
+    return '(%d%s%d)' % (progressBar.fileNumber, self.sep, progressBar.totalNumberOfFiles)
+
+
+
+JBI_URL = "http://justbeamit.com"
+PING_URL = "http://justbeamit.com/ping?server_root=1"
+ACTIVE_BACKEND = None
+
+WIDGETS = [
+  '  ',
+  Percentage(),
+  ' ',
+  FilesCounter(),
+  ' ',
+  Bar(marker='=', left='[', right=']'),
+  ' ',
+  AdaptiveETA(),
+  ' ',
+  AdaptiveTransferSpeed()
+]
+
+
 
 def main():
-  if len(argv) != 2 or argv[1] == "--help":      
-    exit('Usage: beam <filename>')
-  filename = argv[1]
-  token = get_token()
-  print "Your file can be downloaded here: " + ROOT + token
-  posturl(ROOT + "upload/" + token, [], [("file", filename, open(filename).read())])
 
-def get_token():
-  return loads(urlopen(ROOT + "tk/").read())['token']
+  if len(sys.argv) == 0 or sys.argv[1] == "-h" or sys.argv[1] == "--help":
+    exit("usage: beam [path-to-file(s) ...]")
 
-def posturl(url, fields, files):
-    urlparts = urlparse.urlsplit(url)
-    return post_multipart(urlparts[1], urlparts[2], fields,files)
+  filePaths = getFilePaths()
 
-def post_multipart(host, selector, fields, files):
-    content_type, body = encode_multipart_formdata(fields, files)
-    h = httplib.HTTP(host)
-    h.putrequest('POST', selector)
-    h.putheader('content-type', content_type)
-    h.putheader('content-length', str(len(body)))
-    h.endheaders()
-    h.send(body)
-    errcode, errmsg, headers = h.getreply()
-    return h.file.read()
+  # call /ping
+  pingForActiveBackend()
 
-def encode_multipart_formdata(fields, files):
-    BOUNDARY = '----------ThIs_Is_tHe_bouNdaRY_$'
-    CRLF = '\r\n'
-    L = []
-    for (key, value) in fields:
-        L.append('--' + BOUNDARY)
-        L.append('Content-Disposition: form-data; name="%s"' % key)
-        L.append('')
-        L.append(value)
-    for (key, filename, value) in files:
-        L.append('--' + BOUNDARY)
-        L.append('Content-Disposition: form-data; name="%s"; filename="%s"' % (key, filename))
-        L.append('Content-Type: %s' % get_content_type(filename))
-        L.append('')
-        L.append(value)
-    L.append('--' + BOUNDARY + '--')
-    L.append('')
-    body = CRLF.join(L)
-    content_type = 'multipart/form-data; boundary=%s' % BOUNDARY
-    return content_type, body
+  # call /token
+  token = getToken(filePaths)
 
-def get_content_type(filename):
-    return mimetypes.guess_type(filename)[0] or 'application/octet-stream'
+  print("please provide this link to the recipient:\n")
+  print("  " + JBI_URL + "/" + token + "\n")
+  
+  # # call /wait
+  wait(token)
+
+  # # call /upload
+  transfer(token, filePaths)
+
+
+
+def getFilePaths():
+
+  filePaths = []
+  for index in range(1, len(sys.argv)):
+    filePath = sys.argv[index]
+    if (os.path.exists(filePath) and os.path.isfile(filePath)):
+      filePaths.append(filePath)
+    else:
+      print("please specify a valid file (and not a directory):")
+      print(filePath)
+      exit()
+
+  return filePaths
+
+
+def pingForActiveBackend():
+
+  try:
+
+    # send GET request
+    response = requests.get(PING_URL)
+
+    # make sure the request is ok
+    if response.status_code == requests.codes.ok:
+      responseJson = response.json()
+      global ACTIVE_BACKEND
+      ACTIVE_BACKEND = responseJson["serverRoot"]
+    else:
+      response.raise_for_status()
+
+  except Exception as e:
+    print(e.__class__.__name__)
+    print(e)
+    exit()
+
+
+
+def getToken(filePaths):
+
+  tokenUrl = ACTIVE_BACKEND + "/token"
+
+  # gather JSON data for request
+  files = []
+  for filePath in filePaths:
+    fileName = os.path.basename(filePath)
+    fileSize = os.path.getsize(filePath)
+    fileExtensionType = os.path.splitext(filePath)[1][1:] # remove the '.' from the extension
+    fileData = {
+      "fileName": fileName,
+      "fileSize": fileSize,
+      "fileExtensionType": fileExtensionType
+    }
+    files.append(fileData)
+  # end for loop
+
+  requestData = {
+    "type": "CMD",
+    "files": json.dumps(files)
+  }
+
+  try:
+
+    # send POST request
+    response = requests.post(tokenUrl, data=requestData)
+
+    # make sure the request is ok
+    if response.status_code == requests.codes.ok:
+      responseJson = response.json()
+      return responseJson["token"]
+    else:
+      response.raise_for_status()
+
+  except Exception as e:
+    print(e.__class__.__name__)
+    print(e)
+    exit()
+
+
+
+def wait(token):
+  
+  waitUrl = ACTIVE_BACKEND + "/wait"
+  
+  urlParams = {
+    "token": token
+  }
+
+  try:
+
+    # send GET request
+    response = requests.get(waitUrl, params=urlParams)
+
+    # make sure the request is ok
+    if response.status_code == requests.codes.ok:
+      responseJson = response.json()
+      if responseJson["success"] != True or responseJson["validToken"] != True:
+        exit("something went wrong. please try again.")
+    else:
+      response.raise_for_status()
+
+  except Exception as e:
+    print(e.__class__.__name__)
+    print(e)
+    exit()
+
+
+
+def transfer(token, filePaths):
+
+  print("recipient has connected! starting transfer...")
+
+  uploadUrl = ACTIVE_BACKEND + "/upload"
+
+  try:
+
+    index = 0
+    ProgressBar.totalNumberOfFiles = len(filePaths)
+
+    for filePath in filePaths:
+
+      # make the console look pretty with the 
+      sys.stdout.write("\n")
+      print("  " + filePath)
+
+      # the callback function invoked by the monitor
+      def updateProgress(monitor):
+        theProgressBar.update(monitor.bytes_read)
+
+
+      # setup the multi-part encoder & its monitor
+      fileMPE = getMultipartEncoder(filePath)
+      monitor = MultipartEncoderMonitor(fileMPE, updateProgress)
+
+      # setup the progress bar
+      ProgressBar.fileNumber = index + 1 # to avoid showing (0 of 3)
+
+      # since the progress bar will be updated by the multi-part encoder, we can't set 'maxval'
+      # to be the file's size since the encoder adds extra bytes to account for the header
+      theProgressBar = ProgressBar(
+        maxval = len(fileMPE), 
+        widgets = WIDGETS,
+      )
+
+      theProgressBar.start()
+
+      urlParams = {
+        "token": token,
+        "index": index
+      }
+
+      requests.post(
+        uploadUrl,
+        data=monitor,
+        params=urlParams,
+        headers={'Content-Type': monitor.content_type}
+      )
+
+      theProgressBar.finish()
+      index += 1
+    # end for loop
+
+  except Exception as e:
+    print(e.__class__.__name__)
+    print(e)
+    exit()
+
+  finally:
+    sys.stdout.write("\n")
+
+
+
+def getMultipartEncoder(filePath):
+  return MultipartEncoder({
+    "file": (
+      os.path.basename(filePath),
+      open(filePath, "r"),
+      getMimeTypeForFile(filePath)
+    )
+  })
+
+
+
+def getMimeTypeForFile(file):
+  return mimetypes.guess_type(file)[0] or 'application/octet-stream'
+
+
 
 if __name__ == "__main__":
   main()
