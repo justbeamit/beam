@@ -27,10 +27,18 @@ You can pass in 1 or more paths to the file(s) you want to transfer as arguments
 single file transfers:
 
     $ beam /path/to/file
+    please provide this link to the recipient:
+    
+    http://justbeamit.com/[token]
+
 
 multiple file transfers:
 
     $ beam /path/to/file1 /path/to/file2 /path/to/file3 ...
+    please provide this link to the recipient:
+    
+    http://justbeamit.com/[token]
+
 
 Running the `beam` command will generate a URL with a unique token that is meant to be shared with the intended recipient for a 1-time transfer. The recipient will have to visit the URL in order to receive the file(s).
 
