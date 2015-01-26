@@ -44,4 +44,4 @@ Running the `beam` command will generate a URL with a unique token that is meant
 
 ### **Contact Us**
 
-Feel free to email us `team@justbeamit.com` for any questions, comments, thoughts, etc...
+Feel free to email us with any questions, comments, thoughts, etc... `team@justbeamit.com`
