@@ -45,3 +45,7 @@ Running the `beam` command will generate a URL with a unique token that is meant
 ### **Contact Us**
 
 Feel free to email us with any questions, comments, thoughts, etc... `team@justbeamit.com`
+
+[Facebook](https://www.facebook.com/JustBeamIt)
+
+[Twitter](https://twitter.com/JustBeamIt)
