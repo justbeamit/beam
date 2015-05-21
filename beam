@@ -241,7 +241,7 @@ def wait(token):
     # make sure the request is ok
     if response.status_code == requests.codes.ok:
       responseJson = response.json()
-      if (responseJson.has_key("success") and responseJson["success"] != True) or (responseJson.has_key("validToken") and responseJson["validToken"] != True):
+      if responseJson.has_key("validToken") and responseJson["validToken"] != True:
         exit("something went wrong. please try again.")
     else:
       response.raise_for_status()
