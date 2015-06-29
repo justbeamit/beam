@@ -101,7 +101,7 @@ class FilesCounter(Widget):
 
 
 
-JBI_URL = "http://justbeamit.com"
+JBI_URL = "https://justbeamit.com"
 PING_URL = "http://justbeamit.com/ping?server_root=1"
 ACTIVE_BACKEND = None
 
