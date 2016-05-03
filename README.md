@@ -17,7 +17,7 @@ To install, just run the `install.sh` script, which will install the required Py
 
 Note that this requires you to have [pip](https://pip.pypa.io/en/latest/index.html) installed. If you don't have [pip](https://pip.pypa.io/en/latest/index.html), you can manually install the 3 dependencies, and then run the following command:
 
-    $ sudo cp beam /usr/bin
+    $ sudo cp beam /usr/local/bin
 
 Tested with Python 2.7.9.
 
