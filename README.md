@@ -1,5 +1,5 @@
 # JustBeamIt Command Line Utility
-[https://www.justbeamit.com/](https://www.justbeamit.com/)
+[https://www.justbeamit.com](https://www.justbeamit.com)
 
 The `beam` command is a small Python script that takes advantage of the JustBeamIt API. At the moment, it only supports the sender's side of the transfer session, which means that the recipient will still have to go through the web app to receive the files.
 
