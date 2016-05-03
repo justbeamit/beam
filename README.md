@@ -1,5 +1,5 @@
 # JustBeamIt Command Line Utility
-[http://justbeamit.com](http://justbeamit.com)
+[https://www.justbeamit.com/](https://www.justbeamit.com/)
 
 The `beam` command is a small Python script that takes advantage of the JustBeamIt API. At the moment, it only supports the sender's side of the transfer session, which means that the recipient will still have to go through the web app to receive the files.
 
@@ -30,7 +30,7 @@ single file transfers:
     $ beam /path/to/file
     please provide this link to the recipient:
     
-    http://justbeamit.com/[token]
+    https://www.justbeamit.com/[token]
 
 
 multiple file transfers:
@@ -38,7 +38,7 @@ multiple file transfers:
     $ beam /path/to/file1 /path/to/file2 /path/to/file3 ...
     please provide this link to the recipient:
     
-    http://justbeamit.com/[token]
+    https://www.justbeamit.com/[token]
 
 
 Running the `beam` command will generate a URL with a unique token that is meant to be shared with the intended recipient for a 1-time transfer. The recipient will have to visit the URL in order to receive the file(s).
